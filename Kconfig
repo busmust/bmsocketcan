@@ -1,0 +1,8 @@
+config BMCAN
+	tristate "BM USB-CAN FD SocketCAN driver"
+	depends on USB && CAN_DEV
+	select CAN_DEV
+	help
+	  BUSMUST USB-CAN FD SocketCAN driver supporting Classic CAN,
+	  CAN FD, and multi-channel devices (up to 8 channels per device).
+	  Compatible with Gen2, Gen2.5, and Gen3 hardware.

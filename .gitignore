@@ -1,0 +1,68 @@
+# Build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+.*.cmd
+Module.symvers
+modules.order
+.tmp_versions/
+
+# Compiled output
+out/
+
+# Backup files
+*.bak
+*.exe
+
+# Logs
+*.log
+stability_logs/
+
+# Test temporary files
+test_logs/
+candump_*.log
+
+# Temporary files
+temp/
+archive/
+backups/
+logs/
+
+# Claude Code config (local only, not for company repo)
+CLAUDE.md
+.claude/
+
+# Internal docs (local only)
+docs/Internal/
+
+# Local plan files (not for repo)
+doc/PLAN_*.md
+
+# Archive (pending deletion)
+_archive/
+
+# Shell scripts (optional, can be kept separately)
+test_*.sh
+*_test.sh
+*_background.sh
+push_*.sh
+setup_*.sh
+stress_test.sh
+
+# Temporary scripts (NOT committed)
+scripts/
+
+# But keep test modules that are part of the test suite
+!bm_test/modules/*_test.sh
+
+# Reports directory (optional)
+reports/
+
+# Tests directory (optional)
+tests/
+
+# Build system temporary files
+*.patch
+nul
+&1

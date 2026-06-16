@@ -1,0 +1,8 @@
+# BMCAN USB-CAN FD Driver - udev rules
+# Auto-load bmcan module when BMCAN USB device is connected
+#
+# All BUSMUST CAN FD USB devices share VID 0x0810.
+# After `make install` + `depmod`, this rule ensures the driver is loaded
+# automatically whenever a BMCAN device is plugged in.
+
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0810", RUN+="/sbin/modprobe bmcan"

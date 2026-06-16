@@ -1,0 +1,20 @@
+{
+  "generated": "2026-02-10",
+  "last_updated": "2026-02-10 18:04:41",
+  "total_channels": 8,
+  "all_channels": ["can0","can1","can2","can3","can4","can5","can6","can7",""],
+  "device_count": 2,
+  "connection_pairs": [{"tx":"can0","rx":"can6","bidirectional":true,"quality":"100%"},{"tx":"can1","rx":"can7","bidirectional":true,"quality":"100%"}],
+  "default_config": {
+    "bitrate": 500000,
+    "termination": 120
+  },
+  "test_ports": {
+    "primary": {
+      "tx": "can0",
+      "rx": "can6"
+    }
+  },
+  "supported_modes": ["normal"],
+  "unsupported_modes": ["loopback", "listen-only"]
+}

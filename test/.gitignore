@@ -1,0 +1,12 @@
+# Test results
+results/*.xml
+results/*.txt
+results/*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# Backup files
+*.old
+*.orig
