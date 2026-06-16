@@ -32,6 +32,7 @@
 | Gen2             | X1 Pro         | F112                 | 1               | 无 / No        | 无 / No         |
 | Gen2             | X2             | F122                 | 2               | 无 / No        | 无 / No         |
 | Gen2             | X4             | F142                 | 4               | 无 / No        | 无 / No         |
+| Gen2             | X8 Pi          | F182                 | 8               | 无 / No        | 无 / No         |
 | Gen2.5           | X2R            | E122                 | 2               | 支持 / Yes     | 支持 / Yes      |
 | Gen2.5           | X4R            | E142                 | 4               | 支持 / Yes     | 支持 / Yes      |
 | Gen3             | X1             | F013                 | 1               | 支持 / Yes     | 无 / No         |

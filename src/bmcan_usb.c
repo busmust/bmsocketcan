@@ -48,6 +48,7 @@ static atomic_t bmcan_diag_urb_errs = ATOMIC_INIT(0);
 #define BMCAN_PID_F112 0xF112
 #define BMCAN_PID_F122 0xF122
 #define BMCAN_PID_F142 0xF142
+#define BMCAN_PID_F182 0xF182   /* X8 pi: 8-channel Gen2 bare board */
 
 // Gen2.5 devices (E-prefix, has NVM storage, logging/replay)
 #define BMCAN_PID_E122 0xE122
@@ -72,6 +73,8 @@ static int bmcan_channels_from_pid(u16 pid)
     case BMCAN_PID_E142:
     case BMCAN_PID_F142:
         return 4;
+    case BMCAN_PID_F182:
+        return 8;
     case BMCAN_PID_0043:
     case BMCAN_PID_F023:
     case BMCAN_PID_E122:
@@ -97,6 +100,7 @@ enum bmcan_generation bmcan_get_generation(u16 pid)
     case BMCAN_PID_F112:
     case BMCAN_PID_F122:
     case BMCAN_PID_F142:
+    case BMCAN_PID_F182:
         return BMCAN_GEN2;
 
     /* Gen2.5 devices (with non-volatile storage, E-prefix PIDs) */
@@ -886,6 +890,7 @@ static const struct usb_device_id bmcan_usb_table[] = {
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F112) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F122) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F142) },
+    { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F182) },
     { }
 };
 MODULE_DEVICE_TABLE(usb, bmcan_usb_table);

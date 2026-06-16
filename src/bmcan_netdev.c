@@ -1570,7 +1570,7 @@ static int bmcan_open(struct net_device *netdev)
 
     mode = bmcan_get_can_mode(priv);
 
-    pr_info(BMCAN_DRIVER_NAME ": %s open: port=%u mode=0x%x mtu=%u "
+    pr_debug(BMCAN_DRIVER_NAME ": %s open: port=%u mode=0x%x mtu=%u "
             "nominal=%u/%u.%u%% data=%u/%u.%u%%\n",
             netdev->name, priv->port, mode, netdev->mtu,
             bitrate / 1000,
@@ -1634,7 +1634,7 @@ static int bmcan_open(struct net_device *netdev)
             close_candev(netdev);
             return err;
         }
-        pr_info("bmcan: %s open: HW config complete (mode=0x%x)\n", netdev->name, priv->operating_mode);
+        pr_debug("bmcan: %s open: HW config complete (mode=0x%x)\n", netdev->name, priv->operating_mode);
 
 #ifdef DEBUG
         /* Read back bitrate from firmware to verify configuration */
@@ -2601,6 +2601,9 @@ static int bmcan_napi_poll(struct napi_struct *napi, int budget)
 {
     struct bmcan_priv *priv = container_of(napi, struct bmcan_priv, napi);
     struct sk_buff_head localq;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
+    LIST_HEAD(batch);
+#endif
     struct sk_buff *skb;
     int work_done = 0;
     unsigned long flags;
@@ -2614,14 +2617,25 @@ static int bmcan_napi_poll(struct napi_struct *napi, int budget)
     skb_queue_splice_init(&priv->rxq, &localq);
     spin_unlock_irqrestore(&priv->rxq.lock, flags);
 
-    /* Process up to budget (lockless dequeue from local list) */
+    /* On 4.19+ the kernel offers netif_receive_skb_list(): deliver the whole
+     * batch in one protocol-stack entry, avoiding per-frame overhead that
+     * under multi-pair load drove NET_RX softirq starvation on devices with
+     * reduced CPU headroom. Older kernels fall back to per-frame calls. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
     while (work_done < budget && (skb = __skb_dequeue(&localq)))
     {
-        pr_debug("bmcan: napi_poll: %s deliver skb proto=0x%04x\n",
-                priv->netdev->name, ntohs(skb->protocol));
+        list_add_tail(&skb->list, &batch);
+        work_done++;
+    }
+    if (!list_empty(&batch))
+        netif_receive_skb_list(&batch);
+#else
+    while (work_done < budget && (skb = __skb_dequeue(&localq)))
+    {
         netif_receive_skb(skb);
         work_done++;
     }
+#endif
 
     /* Put leftover frames back atomically */
     if (!skb_queue_empty(&localq))
