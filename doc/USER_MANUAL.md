@@ -314,6 +314,24 @@ sudo ip link set can0 type can termination 120   # 开启 / Enable
 
 详见 [README.md - 支持的设备](../README.md#支持的设备--supported-devices) / See [README.md - Supported Devices](../README.md#支持的设备--supported-devices)
 
+### PCIe X8L4 虚拟机直通 / VM Passthrough
+
+VMware 逐个直通 USB 成员时，将同一卡两个成员的 USB 序列号写入 `/etc/modprobe.d/bmcan-pcie.conf`。/ For individual USB passthrough in VMware, put the USB serial numbers of both members of the same card in `/etc/modprobe.d/bmcan-pcie.conf`.
+
+```text
+options bmcan pcie_usb_serials=USB_SERIAL_A,USB_SERIAL_B
+```
+
+如果模块已加载，先停止使用它的程序，并将它注册的 CAN 接口逐一置为 DOWN，再重载。/ If the module is already loaded, stop applications using it and bring its CAN interfaces down before reloading it.
+
+```bash
+sudo modprobe -r bmcan && sudo modprobe bmcan
+cat /sys/module/bmcan/parameters/pcie_usb_serials
+ip -brief link show type can
+```
+
+驱动按烧录的产品 SN 从小到大分配 `can0–can3` 和 `can4–can7`。加载前确保这些名称空闲。/ The programmed product serial numbers determine the `can0–can3` and `can4–can7` groups in ascending order. Make sure these names are available before loading the module.
+
 ---
 
 ## 注意事项 / Important Notes

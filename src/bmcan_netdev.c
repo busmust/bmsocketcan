@@ -2765,7 +2765,7 @@ void bmcan_netdev_rx(struct bmcan_priv *priv, u32 can_id, u8 data_len, const u8 
     }
 }
 
-int bmcan_netdev_register(struct bmcan_dev *dev, u8 port)
+int bmcan_netdev_register(struct bmcan_dev *dev, u8 port, int can_index)
 {
     struct net_device *netdev;
     struct bmcan_priv *priv;
@@ -2780,6 +2780,12 @@ int bmcan_netdev_register(struct bmcan_dev *dev, u8 port)
         bmcan_status_wq_put();
         bmcan_tx_wq_put();
         return -ENOMEM;
+    }
+
+    if (can_index >= 0)
+    {
+        snprintf(netdev->name, IFNAMSIZ, "can%d", can_index);
+        netdev->name_assign_type = NET_NAME_PREDICTABLE;
     }
 
     priv = bmcan_priv_from_netdev(netdev);

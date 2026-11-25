@@ -101,6 +101,7 @@
 #define BM_CLEAR_CONFIG 0xFAU
 #define BM_GET_STAT 0xF4U
 #define BM_GET_DEVICE_VERSION          0xF1U  /* Read 4-byte firmware version */
+#define BM_GET_DEVICE_SN               0xF3U  /* Read programmed product serial number */
 #define BM_BUSOFF_RECOVERY             0xF5U  /* Firmware bus-off recovery command */
 #define BM_SET_DEVICE_PTP_MODE 0xFDU
 #define BM_STAT_TOTAL_STORAGE_SIZE_KB 7U
@@ -559,7 +560,7 @@ int bmcan_proto_get_replay(struct bmcan_dev *dev, struct bmcan_replay_config *cf
 void bmcan_netdev_rx(struct bmcan_priv *priv, u32 can_id, u8 data_len, const u8 *data,
                      bool is_ext, bool is_rtr, bool is_fd, bool brs, u64 ts_ns,
                      struct sk_buff_head *port_queues);
-int bmcan_netdev_register(struct bmcan_dev *dev, u8 port);
+int bmcan_netdev_register(struct bmcan_dev *dev, u8 port, int can_index);
 void bmcan_netdev_unregister(struct bmcan_dev *dev, u8 port);
 
 #endif

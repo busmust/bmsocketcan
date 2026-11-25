@@ -11,7 +11,7 @@
 #   Phase 3: Advanced tests (config persistence, stress, generation-specific)
 #     - Gen3 only: extreme FPS test
 #     - Gen2.5 only: logging, replay tests
-#   Output: JUnit XML report for Bamboo CI
+#   Output: JUnit XML report
 ################################################################################
 
 # Script directory

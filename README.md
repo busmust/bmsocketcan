@@ -40,6 +40,7 @@
 | Gen3             | X4             | F043                 | 4               | 支持 / Yes     | 无 / No         |
 | Gen3             | XL2            | 0043                 | 2               | 支持 / Yes     | 无 / No         |
 | Gen3             | XL4            | 0083                 | 4               | 支持 / Yes     | 无 / No         |
+| Gen3             | PCIe X8L4      | 0063                 | 8 (2×4)         | 支持 / Yes     | 无 / No         |
 
 **功能说明 / Feature Notes**:
 - txtasks / routes: 所有代际 / All generations
@@ -118,11 +119,11 @@ cansend can0 123#DEADBEEF
 
 **高级功能 / Advanced Features**:
 - txtasks, routes, logging, replay 等功能为 BMCAN 独有特性 / txtasks, routes, logging, replay are BMCAN exclusive features
-- 当前测试阶段仍在完善中，使用时请谨慎操作 / Current testing phase is under development, use with caution
+- 使用高级功能前，请核对上方设备支持表。/ Check the supported-device table for the features available on your model.
 - 遇到问题请及时反馈 / Report issues promptly:
   - 官方网站 / Official website: https://www.busmust.com
   - 技术支持 / Technical support: support@busmust.com
 
 **维护者 / Maintainer**: BUSMUST 技术支持团队 / BUSMUST Technical Support Team
 **许可证 / License**: GPL-2.0-or-later (见 / See [LICENSE](LICENSE))
-**最后更新 / Last Updated**: 2026-06-02
+**最后更新 / Last Updated**: 2026-11-25

@@ -4,10 +4,11 @@
 # Writes to disk with sync after every sample. Survives hard resets.
 # Also dumps full dmesg periodically so kernel messages are preserved.
 #
-# Usage: sudo bash scripts/system_monitor.sh [interval_secs] [log_dir]
+# Usage: sudo bash test/tools/system_monitor.sh [interval_secs] [log_dir]
 
 INTERVAL=${1:-10}
-LOGDIR=${2:-"/home/busmust/socketcan/socketcan/test/results/diag"}
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOGDIR=${2:-"$TEST_DIR/results/diag"}
 
 mkdir -p "$LOGDIR"
 MONITOR_LOG="$LOGDIR/system_monitor.log"

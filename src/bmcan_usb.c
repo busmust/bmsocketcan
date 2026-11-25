@@ -12,6 +12,8 @@
 #include "bmcan_core.h"
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
@@ -25,6 +27,12 @@ static bool bmcan_no_netdev = false;
 static struct workqueue_struct *bmcan_rx_wq;
 module_param_named(no_netdev, bmcan_no_netdev, bool, 0644);
 MODULE_PARM_DESC(no_netdev, "[bring-up] Skip netdev registration for debugging");
+
+static char *bmcan_pcie_serials[2];
+static unsigned int bmcan_pcie_serial_count;
+module_param_array_named(pcie_usb_serials, bmcan_pcie_serials, charp,
+                         &bmcan_pcie_serial_count, 0444);
+MODULE_PARM_DESC(pcie_usb_serials, "Two USB serials of one PCIe X8L4 passed through to VMware");
 
 /* Verbose TX/RX hex dump logging */
 bool bmcan_debug_comm = false;
@@ -42,6 +50,9 @@ static atomic_t bmcan_diag_ctrl_max_ms = ATOMIC_INIT(0);
 static atomic_t bmcan_diag_urb_errs = ATOMIC_INIT(0);
 
 #define BMCAN_USB_VID 0x0810
+#define BMCAN_PCIE_CONTROLLER_ID 0x0014
+#define BMCAN_PCIE_MEMBER_CHANNELS 4
+#define BMCAN_PRODUCT_SN_SIZE 16
 
 // Gen2 devices (F-prefix, 4th digit = 2)
 #define BMCAN_PID_F012 0xF012
@@ -59,15 +70,151 @@ static atomic_t bmcan_diag_urb_errs = ATOMIC_INIT(0);
 #define BMCAN_PID_F023 0xF023
 #define BMCAN_PID_F043 0xF043
 #define BMCAN_PID_0043 0x0043
+#define BMCAN_PID_0063 0x0063
 #define BMCAN_PID_0083 0x0083
 
 #define BMCAN_IS_READ_CMD(cmd) ((((cmd) & 0xF0) == 0xD0) || ((cmd) >= 0xF1 && (cmd) <= 0xFA))
 
-/* Map product ID to channel count. */
+static bool bmcan_usb_serial_matches(const struct usb_device *udev, unsigned int member)
+{
+    return udev->serial && *udev->serial &&
+           !strcmp(udev->serial, bmcan_pcie_serials[member]);
+}
+
+struct bmcan_pcie_pair
+{
+    struct usb_bus *bus;
+    struct usb_device *members[2];
+};
+
+static int bmcan_find_pcie_member(struct usb_device *udev, void *data)
+{
+    struct bmcan_pcie_pair *pair = data;
+    unsigned int i;
+
+    if (udev->bus != pair->bus ||
+        le16_to_cpu(udev->descriptor.idVendor) != BMCAN_USB_VID ||
+        le16_to_cpu(udev->descriptor.idProduct) != BMCAN_PID_0063)
+        return 0;
+
+    for (i = 0; i < ARRAY_SIZE(pair->members); i++)
+    {
+        if (!bmcan_usb_serial_matches(udev, i))
+            continue;
+        if (pair->members[i])
+            return -EEXIST;
+        pair->members[i] = usb_get_dev(udev);
+    }
+    return 0;
+}
+
+static int bmcan_read_product_sn(struct usb_device *udev, unsigned int *serial)
+{
+    char *buf;
+    char *end;
+    int ret;
+
+    buf = kmalloc(BMCAN_PRODUCT_SN_SIZE, GFP_KERNEL);
+    if (!buf)
+        return -ENOMEM;
+
+    ret = pm_runtime_get_sync(&udev->dev);
+    if (ret < 0)
+    {
+        pm_runtime_put_noidle(&udev->dev);
+        goto out;
+    }
+    ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), BM_GET_DEVICE_SN,
+                          USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+                          0, 0, buf, BMCAN_PRODUCT_SN_SIZE, BMCAN_TIMEOUT_NORMAL);
+    pm_runtime_put(&udev->dev);
+    if (ret == BMCAN_PRODUCT_SN_SIZE)
+    {
+        /* The final byte of the firmware SN field is a signature marker. */
+        end = memchr(buf, '\0', BMCAN_PRODUCT_SN_SIZE - 1);
+        ret = !end || end == buf || strspn(buf, "0123456789") != end - buf ?
+              -EINVAL : kstrtouint(buf, 10, serial);
+    }
+    else if (ret >= 0)
+        ret = -EIO;
+out:
+    kfree(buf);
+    return ret;
+}
+
+static int bmcan_vmware_pcie_offset(struct usb_device *udev)
+{
+    struct bmcan_pcie_pair pair = { .bus = udev->bus };
+    unsigned int serials[2];
+    int ret;
+
+    if (bmcan_pcie_serial_count != ARRAY_SIZE(pair.members) ||
+        !strcmp(bmcan_pcie_serials[0], bmcan_pcie_serials[1]) ||
+        (!bmcan_usb_serial_matches(udev, 0) && !bmcan_usb_serial_matches(udev, 1)))
+        return -ENODEV;
+
+    ret = usb_for_each_dev(&pair, bmcan_find_pcie_member);
+    if (ret)
+        goto out;
+    if (!pair.members[0] || !pair.members[1])
+    {
+        ret = -EPROBE_DEFER;
+        goto out;
+    }
+    ret = bmcan_read_product_sn(pair.members[0], &serials[0]);
+    if (ret)
+        goto out;
+    ret = bmcan_read_product_sn(pair.members[1], &serials[1]);
+    if (ret)
+        goto out;
+    if (serials[0] == serials[1])
+    {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = udev == pair.members[serials[0] < serials[1] ? 0 : 1] ?
+          0 : BMCAN_PCIE_MEMBER_CHANNELS;
+out:
+    usb_put_dev(pair.members[0]);
+    usb_put_dev(pair.members[1]);
+    return ret;
+}
+
+static int bmcan_pcie_can_offset(struct usb_device *udev)
+{
+    struct device *controller = udev->bus->controller;
+    const struct pci_dev *pci;
+
+    if (!controller || !dev_is_pci(controller))
+        return -ENODEV;
+
+    pci = to_pci_dev(controller);
+    if (pci->vendor == PCI_VENDOR_ID_RENESAS && pci->device == BMCAN_PCIE_CONTROLLER_ID)
+    {
+        /* uPD720201 USB2 xHCI ports start at hardware port 5. Linux numbers
+         * that root hub from 1, so its logical ports 1/2 are hardware 5/6.
+         */
+        if (udev->parent != udev->bus->root_hub || udev->speed != USB_SPEED_HIGH)
+            return -ENODEV;
+        if (udev->portnum == 1 || udev->portnum == 2)
+            return (udev->portnum - 1) * BMCAN_PCIE_MEMBER_CHANNELS;
+        return -ENODEV;
+    }
+
+    if (pci->vendor == PCI_VENDOR_ID_VMWARE)
+        return bmcan_vmware_pcie_offset(udev);
+
+    return -ENODEV;
+}
+
+/* Map product ID to the number of contiguous CAN ports starting at zero. */
 static int bmcan_channels_from_pid(u16 pid)
 {
     switch (pid)
     {
+    case BMCAN_PID_0063:
+        return BMCAN_PCIE_MEMBER_CHANNELS;
     case BMCAN_PID_0083:
     case BMCAN_PID_F043:
     case BMCAN_PID_E142:
@@ -110,8 +257,9 @@ enum bmcan_generation bmcan_get_generation(u16 pid)
 
     /* Gen3 devices (HPM platform, version digit = 3)
      * F013/F023/F043: F-prefix with version 3
-     * 0043/0083: new PID scheme */
+     * 0043/0063/0083: new PID scheme */
     case BMCAN_PID_0043:
+    case BMCAN_PID_0063:
     case BMCAN_PID_0083:
     case BMCAN_PID_F013:
     case BMCAN_PID_F023:
@@ -625,11 +773,13 @@ void bmcan_usb_kill_rx(struct bmcan_dev *dev)
 static int bmcan_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
     struct usb_device *udev = interface_to_usbdev(intf);
+    u16 pid = le16_to_cpu(udev->descriptor.idProduct);
     struct bmcan_dev *dev;
     struct usb_host_interface *iface_desc;
     struct usb_endpoint_descriptor *ep;
     int i;
     int channels;
+    int can_offset = -1;
     int err;
 
     /* Composite USB devices (e.g. E142) expose multiple interfaces.
@@ -640,6 +790,14 @@ static int bmcan_probe(struct usb_interface *intf, const struct usb_device_id *i
                  intf->cur_altsetting->desc.bInterfaceNumber);
         return -ENODEV;
     }
+
+    if (pid == BMCAN_PID_0063)
+    {
+        can_offset = bmcan_pcie_can_offset(udev);
+        if (can_offset < 0)
+            return can_offset;
+    }
+    channels = bmcan_channels_from_pid(pid);
 
     dev = kzalloc(sizeof(*dev), GFP_KERNEL);
     if (!dev)
@@ -660,13 +818,13 @@ static int bmcan_probe(struct usb_interface *intf, const struct usb_device_id *i
     atomic_set(&dev->open_count, 0);
 
     /* Detect device generation from Product ID */
-    dev->generation = bmcan_get_generation(le16_to_cpu(udev->descriptor.idProduct));
+    dev->generation = bmcan_get_generation(pid);
     {
         const char *gen_str = (dev->generation == BMCAN_GEN2) ? "Gen2" :
                               (dev->generation == BMCAN_GEN2_5) ? "Gen2.5" :
                               (dev->generation == BMCAN_GEN3) ? "Gen3" : "Unknown";
         pr_info("bmcan: detected device %s (PID=0x%04x)\n",
-                gen_str, le16_to_cpu(udev->descriptor.idProduct));
+                 gen_str, pid);
     }
 
     /* Set TX limits based on device generation (matching BMAPI SDK).
@@ -675,21 +833,19 @@ static int bmcan_probe(struct usb_interface *intf, const struct usb_device_id *i
      * Gen2 multi-ch: buf=20480, max_packet=512.
      * Gen2 1-ch: buf=2048, max_packet=256. */
     {
-        u16 pid = le16_to_cpu(udev->descriptor.idProduct);
         u32 dev_ver = pid & 0x000FU;
-        int ch_count = bmcan_channels_from_pid(pid);
 
         if (dev_ver >= 3)
         {
             dev->tx_limits.device_buf_size = 24000;
             dev->tx_limits.max_packet_size = 12000;
         }
-        else if (ch_count == 1)
+        else if (channels == 1)
         {
             dev->tx_limits.device_buf_size = 2048;
             dev->tx_limits.max_packet_size = 256;
         }
-        else if (ch_count >= 8)
+        else if (channels >= 8)
         {
             dev->tx_limits.device_buf_size = 4096;
             dev->tx_limits.max_packet_size = 512;
@@ -780,12 +936,11 @@ static int bmcan_probe(struct usb_interface *intf, const struct usb_device_id *i
     INIT_DELAYED_WORK(&dev->rx_resubmit_work, bmcan_rx_resubmit_workfn);
     WRITE_ONCE(dev->rx_last_jiffies, jiffies);
 
-    channels = bmcan_channels_from_pid(le16_to_cpu(udev->descriptor.idProduct));
     if (!bmcan_no_netdev)
     {
         for (i = 0; i < channels; i++)
         {
-            err = bmcan_netdev_register(dev, (u8)i);
+            err = bmcan_netdev_register(dev, (u8)i, can_offset < 0 ? -1 : can_offset + i);
             if (err)
             {
                 pr_err(BMCAN_DRIVER_NAME ": register netdev %d failed (%d)\n", i, err);
@@ -880,6 +1035,7 @@ static void bmcan_disconnect(struct usb_interface *intf)
 
 static const struct usb_device_id bmcan_usb_table[] = {
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_0043) },
+    { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_0063) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_0083) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_E122) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_E142) },

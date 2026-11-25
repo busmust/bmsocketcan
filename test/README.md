@@ -1,6 +1,6 @@
 # BMCAN Test Framework
 
-> Automated test suite for BMCAN USB-CAN FD driver (Bamboo CI)
+> Automated tests for the BMCAN USB-CAN FD driver
 
 ---
 
@@ -69,7 +69,7 @@ test/
 
 ## Hardware Config
 
-Current connections (two USB devices, 8 channels):
+Example connections for two four-channel devices. Set the port pairs to match your wiring before running the tests.
 
 ```
 can0 <-> can6     can1 <-> can7
@@ -93,7 +93,7 @@ hw_init_pair "$TX" "$RX"
 
 ---
 
-## Bamboo CI Integration
+## Running the tests in CI
 
 ```bash
 cd /path/to/bmsocketcan
