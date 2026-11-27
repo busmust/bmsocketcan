@@ -67,9 +67,12 @@ static atomic_t bmcan_diag_urb_errs = ATOMIC_INIT(0);
 
 // Gen3 devices (4th digit = 3, HPM platform)
 #define BMCAN_PID_F013 0xF013
+#define BMCAN_PID_F113 0xF113
 #define BMCAN_PID_F023 0xF023
 #define BMCAN_PID_F043 0xF043
 #define BMCAN_PID_0043 0x0043
+#define BMCAN_PID_0143 0x0143
+#define BMCAN_PID_F123 0xF123
 #define BMCAN_PID_0063 0x0063
 #define BMCAN_PID_0083 0x0083
 
@@ -223,11 +226,14 @@ static int bmcan_channels_from_pid(u16 pid)
     case BMCAN_PID_F182:
         return 8;
     case BMCAN_PID_0043:
+    case BMCAN_PID_0143:
     case BMCAN_PID_F023:
+    case BMCAN_PID_F123:
     case BMCAN_PID_E122:
     case BMCAN_PID_F122:
         return 2;
     case BMCAN_PID_F013:
+    case BMCAN_PID_F113:
     case BMCAN_PID_F012:
     case BMCAN_PID_F112:
         return 1;
@@ -259,11 +265,14 @@ enum bmcan_generation bmcan_get_generation(u16 pid)
      * F013/F023/F043: F-prefix with version 3
      * 0043/0063/0083: new PID scheme */
     case BMCAN_PID_0043:
+    case BMCAN_PID_0143:
     case BMCAN_PID_0063:
     case BMCAN_PID_0083:
     case BMCAN_PID_F013:
+    case BMCAN_PID_F113:
     case BMCAN_PID_F023:
     case BMCAN_PID_F043:
+    case BMCAN_PID_F123:
         return BMCAN_GEN3;
 
     default:
@@ -1035,6 +1044,7 @@ static void bmcan_disconnect(struct usb_interface *intf)
 
 static const struct usb_device_id bmcan_usb_table[] = {
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_0043) },
+    { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_0143) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_0063) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_0083) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_E122) },
@@ -1044,6 +1054,8 @@ static const struct usb_device_id bmcan_usb_table[] = {
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F023) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F043) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F112) },
+    { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F113) },
+    { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F123) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F122) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F142) },
     { USB_DEVICE(BMCAN_USB_VID, BMCAN_PID_F182) },

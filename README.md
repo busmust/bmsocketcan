@@ -36,9 +36,12 @@
 | Gen2.5           | X2R            | E122                 | 2               | 支持 / Yes     | 支持 / Yes      |
 | Gen2.5           | X4R            | E142                 | 4               | 支持 / Yes     | 支持 / Yes      |
 | Gen3             | X1             | F013                 | 1               | 支持 / Yes     | 无 / No         |
+| Gen3             | X1 Pro         | F113                 | 1               | 支持 / Yes     | 无 / No         |
 | Gen3             | X2             | F023                 | 2               | 支持 / Yes     | 无 / No         |
+| Gen3             | X2 Pro         | F123                 | 2               | 支持 / Yes     | 无 / No         |
 | Gen3             | X4             | F043                 | 4               | 支持 / Yes     | 无 / No         |
 | Gen3             | XL2            | 0043                 | 2               | 支持 / Yes     | 无 / No         |
+| Gen3             | XL2 Pro        | 0143                 | 2               | 支持 / Yes     | 无 / No         |
 | Gen3             | XL4            | 0083                 | 4               | 支持 / Yes     | 无 / No         |
 | Gen3             | PCIe X8L4      | 0063                 | 8 (2×4)         | 支持 / Yes     | 无 / No         |
 
@@ -126,4 +129,4 @@ cansend can0 123#DEADBEEF
 
 **维护者 / Maintainer**: BUSMUST 技术支持团队 / BUSMUST Technical Support Team
 **许可证 / License**: GPL-2.0-or-later (见 / See [LICENSE](LICENSE))
-**最后更新 / Last Updated**: 2026-11-25
+**最后更新 / Last Updated**: 2026-11-27
